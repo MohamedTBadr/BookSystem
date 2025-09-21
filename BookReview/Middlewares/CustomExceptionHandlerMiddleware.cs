@@ -21,7 +21,7 @@ namespace BookReview.Middlewares
                     logger.LogError($"Something went wrong:{ex.Message}");
                 //handling it
                 await HandleExceptionAsync(context,ex);
-            }
+            } 
         }
 
         private async Task HandleExceptionAsync(HttpContext context, Exception ex)
@@ -34,13 +34,14 @@ namespace BookReview.Middlewares
             context.Response.StatusCode = ex switch
             {
                 NotFoundException => (int)HttpStatusCode.NotFound,
+                RateLimitExceededException=>(int)HttpStatusCode.TooManyRequests,
                 _ =>(int)HttpStatusCode.InternalServerError
             };
 
             //return standard response 
             var response = new ErrorDetails//C# object 
             {
-                StatusCode = (int)HttpStatusCode.InternalServerError,
+                StatusCode = context.Response.StatusCode,
                 ErrorMessage = ex.Message
             };
             var response2 = JsonSerializer.Serialize(response);

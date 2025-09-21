@@ -1,5 +1,6 @@
 
 using BookReview.Data.DTO.AuthenticationDTO;
+using BookReview.Data.ErrorModels;
 using BookReview.Data.Repositories;
 using BookReview.Data.Repositories.Interfaces;
 using BookReview.Data.UnitOfWork;
@@ -10,6 +11,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
+using System.Threading.RateLimiting;
 
 namespace BookReview
 {
@@ -40,7 +42,26 @@ namespace BookReview
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+            
+            builder.Services.AddRateLimiter(options =>
+            {
+                
+                options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        partitionKey: httpContext.User.Identity?.Name ?? httpContext.Request.Headers.Host.ToString(),
+                        factory: partition => new FixedWindowRateLimiterOptions
+                        {
+                            AutoReplenishment = true,
+                            PermitLimit = 10,
+                            QueueLimit = 0,
+                            Window = TimeSpan.FromMinutes(1)
+                        }));
 
+                options.OnRejected = (context, token) =>
+                {
+                   throw new RateLimitExceededException();
+                };
+            });
             var app = builder.Build();
             app.UseMiddleware<CustomExceptionHandlerMiddleware>();
             // Configure the HTTP request pipeline.
@@ -53,7 +74,9 @@ namespace BookReview
             app.UseHttpsRedirection();
 
             app.UseAuthorization();
-
+            app.UseAuthentication();
+            app.UseStaticFiles();
+            app.UseRateLimiter();
 
             app.MapControllers();
 

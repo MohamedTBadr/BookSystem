@@ -11,3 +11,4 @@ namespace BookReview.Services
         public async Task SetCacheValueAsync(string CacheKey, object value, TimeSpan TTL)=> await cacheRepository.SetAsync(CacheKey, (string)value, TTL);
     }
 }
+ 
